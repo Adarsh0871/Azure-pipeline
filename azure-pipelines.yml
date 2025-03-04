@@ -1,17 +1,37 @@
-Running are failed # HTML
-# Archive your static HTML project and save it with the build record.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
 trigger:
-- main
+  - main  # Runs the pipeline when changes are pushed to 'main' branch
 
 pool:
-  vmImage: ubuntu-latest
+  name: Default  # Use your self-hosted agent pool name
 
-steps:
-- task: ArchiveFiles@2
-  inputs:
-    rootFolderOrFile: '$(build.sourcesDirectory)'
-    includeRootFolder: false
-- task: PublishBuildArtifacts@1
+stages:
+- stage: Build
+  jobs:
+  - job: BuildJob
+    steps:
+    - script: |
+        echo "Building HTML site..."
+        mkdir $(Build.ArtifactStagingDirectory)/site
+        cp -r * $(Build.ArtifactStagingDirectory)/site
+      displayName: "Prepare HTML Artifacts"
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '$(Build.ArtifactStagingDirectory)/site'
+        artifactName: 'html-site'
+
+- stage: Deploy
+  jobs:
+  - job: DeployJob
+    steps:
+    - task: DownloadBuildArtifacts@0
+      inputs:
+        artifactName: 'html-site'
+        downloadPath: '$(Build.ArtifactStagingDirectory)'
+
+    - script: |
+        echo "Deploying HTML site..."
+        sudo rm -rf /var/www/html/*
+        sudo cp -r $(Build.ArtifactStagingDirectory)/html-site/* /var/www/html/
+        sudo systemctl restart apache2  # Change to nginx if needed
+      displayName: "Deploy HTML to Web Server"
