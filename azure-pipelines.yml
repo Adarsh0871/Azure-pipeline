@@ -11,7 +11,7 @@ stages:
     steps:
     - script: |
         echo "Building HTML site..."
-        mkdir $(Build.ArtifactStagingDirectory)/site
+        mkdir -p $(Build.ArtifactStagingDirectory)/site
         cp -r * $(Build.ArtifactStagingDirectory)/site
       displayName: "Prepare HTML Artifacts"
 
@@ -22,16 +22,27 @@ stages:
 
 - stage: Deploy
   jobs:
-  - job: DeployJob
+  - job: DeployToLocalServer
     steps:
     - task: DownloadBuildArtifacts@0
       inputs:
         artifactName: 'html-site'
         downloadPath: '$(Build.ArtifactStagingDirectory)'
 
-    - script: |
-        echo "Deploying HTML site..."
-        sudo rm -rf /var/www/html/*
-        sudo cp -r $(Build.ArtifactStagingDirectory)/html-site/* /var/www/html/
-        sudo systemctl restart apache2  # Change to nginx if needed
-      displayName: "Deploy HTML to Web Server"
+    - task: CopyFilesOverSSH@0
+      inputs:
+        sshEndpoint: 'pipeline_test'  # Must match the service connection name
+        sourceFolder: '$(Build.ArtifactStagingDirectory)/html-site'
+        targetFolder: '/var/www/html'
+        cleanTargetFolder: true
+        overwrite: true
+      displayName: "Copy HTML Files to Local Server"
+
+    - task: SSH@0
+      inputs:
+        sshEndpoint: 'pipeline_test'
+        runOptions: 'inline'
+        inline: |
+          echo "Restarting Apache on Local Server..."
+          sudo systemctl restart apache2
+      displayName: "Restart Web Server"
