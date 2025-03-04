@@ -4,7 +4,7 @@ trigger:
 pool:
   name: Default  # Make sure this matches the agent pool where "my-local-agent" is registered
   demands:
-    - Agent.Name -equals my-local-agent  # Ensures it runs on your agent
+    - Agent.Name -equals my-local-agent2  # Ensures it runs on your agent
 
 stages:
 - stage: Build
