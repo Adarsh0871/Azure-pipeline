@@ -67,9 +67,4 @@ stages:
         echo "Verifying deployment with deployment ID: $(deploymentID)"  
         # Add verification steps here (e.g., checking if services are running)  
       displayName: "Verify Deployment" 
-      
-    - script: |
-    	echo "Setting Deployment ID"
-    	echo "##vso[task.setvariable variable=deploymentID]Deploy-$(Build.BuildId)"
-      displayName: "Set Deployment ID"
  
