@@ -1,7 +1,10 @@
 trigger:
   - main  # Runs the pipeline when changes are pushed to 'main' branch
 
-pool: { vmImage: ubuntu-latest }  # Use your self-hosted agent pool name
+pool:
+  name: Default  # Make sure this matches the agent pool where "my-local-agent" is registered
+  demands:
+    - Agent.Name -equals my-local-agent  # Ensures it runs on your agent
 
 stages:
 - stage: Build
@@ -28,20 +31,9 @@ stages:
         artifactName: 'html-site'
         downloadPath: '$(Build.ArtifactStagingDirectory)'
 
-    - task: CopyFilesOverSSH@0
-      inputs:
-        sshEndpoint: 'pipeline_test'  # Must match the service connection name
-        sourceFolder: '$(Build.ArtifactStagingDirectory)/html-site'
-        targetFolder: '/var/www/html'
-        cleanTargetFolder: true
-        overwrite: true
-      displayName: "Copy HTML Files to Local Server"
-
-    - task: SSH@0
-      inputs:
-        sshEndpoint: 'pipeline_test'
-        runOptions: 'inline'
-        inline: |
-          echo "Restarting Apache on Local Server..."
-          sudo systemctl restart apache2
-      displayName: "Restart Web Server"
+    - script: |
+        echo "Deploying files to /var/www/html"
+        sudo rm -rf /var/www/html/*
+        sudo cp -r $(Build.ArtifactStagingDirectory)/html-site/* /var/www/html/
+        sudo systemctl restart apache2
+      displayName: "Deploy and Restart Web Server"
