@@ -6,8 +6,8 @@ pool:
   demands:  
     - Agent.Name -equals my-local-agent2  # Ensures it runs on your agent 
 
-variables:
-  deploymentID: $(Build.BuildId)  # Uses the pipeline's Build ID as the deployment ID
+# variables:
+  # deploymentID: $(Build.BuildId)  # Uses the pipeline's Build ID as the deployment ID
 
 stages:  
 
