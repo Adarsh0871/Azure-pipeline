@@ -55,7 +55,7 @@ stages:
   - job: DeployToLocalServer  
     steps:  
     - script: |  
-        echo "Fetching build artifact with deployment ID: $(deploymentID)"  
+        echo "Fetching build artifact with"  
       displayName: "Fetch Build Artifacts"  
 
     - task: DownloadBuildArtifacts@0  
@@ -65,7 +65,7 @@ stages:
       displayName: "Pull Build Artifacts"  
 
     - script: |  
-        echo "Deploying files to /var/ with deployment ID: $(deploymentID)"  
+        echo "Deploying files to /var/ "  
         sudo rm -rf /var/www/html/*  
         sudo cp -r $(Build.ArtifactStagingDirectory)/html-site/* /var/www/html  
         sudo systemctl restart apache2  
@@ -77,7 +77,7 @@ stages:
   - job: VerifyDeployment  
     steps:  
     - script: |  
-        echo "Verifying deployment with deployment ID: $(deploymentID)"  
+        echo "Verifying deployment"  
         # Add verification steps here (e.g., checking if services are running)  
       displayName: "Verify Deployment"  
 
