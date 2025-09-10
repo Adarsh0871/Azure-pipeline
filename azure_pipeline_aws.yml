@@ -4,19 +4,19 @@
   gather_facts: no
 
   vars:
-    # Use Python from virtual environment instead of system Python
     ansible_python_interpreter: "{{ playbook_dir }}/venv/bin/python3"
 
     region: us-east-1
     key_name: ansiblekey
     vpc_cidr: "10.0.0.0/16"
     subnet_cidr: "10.0.1.0/24"
-    instance_type: t2.micro
+
+    # Safe default to avoid vCPU limit issues
+    instance_type: "{{ lookup('env', 'INSTANCE_TYPE') | default('t2.micro', true) }}"
     image_id: ami-020cba7c55df1f615
     instance_name: FullStackEC2
     security_group_name: EC2SecurityGroup
 
-    # AWS credentials from pipeline variables
     aws_access_key: "{{ aws_access_key | default(lookup('env','AWS_ACCESS_KEY_ID')) }}"
     aws_secret_key: "{{ aws_secret_key | default(lookup('env','AWS_SECRET_ACCESS_KEY')) }}"
 
