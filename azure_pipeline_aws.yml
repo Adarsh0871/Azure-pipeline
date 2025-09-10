@@ -1,124 +1,90 @@
-- name: Launch EC2 Instance
+---
+- name: Provision AWS Infrastructure
   hosts: localhost
   connection: local
   gather_facts: no
-
   vars:
-    ansible_python_interpreter: "{{ playbook_dir }}/venv/bin/python3"
-
-    region: us-east-1
-    key_name: ansiblekey
+    region: ap-south-1          # Change to your AWS region
     vpc_cidr: "10.0.0.0/16"
     subnet_cidr: "10.0.1.0/24"
-
-    # Safe default to avoid vCPU limit issues
-    instance_type: "{{ lookup('env', 'INSTANCE_TYPE') | default('t2.micro', true) }}"
-    image_id: ami-020cba7c55df1f615
-    instance_name: FullStackEC2
-    security_group_name: EC2SecurityGroup
-
-    aws_access_key: "{{ aws_access_key | default(lookup('env','AWS_ACCESS_KEY_ID')) }}"
-    aws_secret_key: "{{ aws_secret_key | default(lookup('env','AWS_SECRET_ACCESS_KEY')) }}"
+    instance_type: t2.micro     # Safe choice (1 vCPU, within limit)
+    ami_id: ami-0e306788ff2473ccb   # Amazon Linux 2 AMI for ap-south-1 (update per region)
+    key_name: mykey             # Ensure this key pair exists in AWS
 
   tasks:
-    - name: Create a VPC
+
+    - name: Create VPC
       amazon.aws.ec2_vpc_net:
-        name: MyVPC
+        name: my-vpc
         cidr_block: "{{ vpc_cidr }}"
         region: "{{ region }}"
-        dns_support: yes
-        dns_hostnames: yes
-        state: present
-        aws_access_key: "{{ aws_access_key }}"
-        aws_secret_key: "{{ aws_secret_key }}"
+        tags:
+          Name: my-vpc
       register: vpc
 
-    - name: Create a subnet in the VPC
+    - name: Create subnet
       amazon.aws.ec2_vpc_subnet:
         vpc_id: "{{ vpc.vpc.id }}"
         cidr: "{{ subnet_cidr }}"
         region: "{{ region }}"
         map_public: yes
-        state: present
-        aws_access_key: "{{ aws_access_key }}"
-        aws_secret_key: "{{ aws_secret_key }}"
+        tags:
+          Name: my-subnet
       register: subnet
 
-    - name: Create an internet gateway
+    - name: Create internet gateway
       amazon.aws.ec2_vpc_igw:
         vpc_id: "{{ vpc.vpc.id }}"
         region: "{{ region }}"
         state: present
-        aws_access_key: "{{ aws_access_key }}"
-        aws_secret_key: "{{ aws_secret_key }}"
+        tags:
+          Name: my-igw
       register: igw
 
     - name: Create route table and associate subnet
       amazon.aws.ec2_vpc_route_table:
         vpc_id: "{{ vpc.vpc.id }}"
         region: "{{ region }}"
-        state: present
+        tags:
+          Name: my-rt
         subnets:
           - "{{ subnet.subnet.id }}"
         routes:
           - dest: 0.0.0.0/0
             gateway_id: "{{ igw.gateway_id }}"
-        aws_access_key: "{{ aws_access_key }}"
-        aws_secret_key: "{{ aws_secret_key }}"
       register: route_table
 
     - name: Create security group allowing SSH and HTTP
       amazon.aws.ec2_group:
-        name: "{{ security_group_name }}"
-        description: Security group for SSH and HTTP
+        name: my-sg
+        description: allow ssh and http
         vpc_id: "{{ vpc.vpc.id }}"
         region: "{{ region }}"
         rules:
           - proto: tcp
-            from_port: 22
-            to_port: 22
+            ports:
+              - 22
+              - 80
             cidr_ip: 0.0.0.0/0
-          - proto: tcp
-            from_port: 80
-            to_port: 80
-            cidr_ip: 0.0.0.0/0
-        rules_egress:
-          - proto: all
-            cidr_ip: 0.0.0.0/0
-        state: present
-        aws_access_key: "{{ aws_access_key }}"
-        aws_secret_key: "{{ aws_secret_key }}"
       register: sg
 
     - name: Launch EC2 instance in subnet
       amazon.aws.ec2_instance:
-        name: "{{ instance_name }}"
+        name: my-ec2
+        region: "{{ region }}"
         key_name: "{{ key_name }}"
         instance_type: "{{ instance_type }}"
-        image_id: "{{ image_id }}"
-        region: "{{ region }}"
+        image_id: "{{ ami_id }}"
         wait: yes
         count: 1
-        network_interfaces:
-          - device_index: 0
-            subnet_id: "{{ subnet.subnet.id }}"
-            assign_public_ip: yes
-            groups:
-              - "{{ sg.group_id }}"
-        volumes:
-          - device_name: /dev/xvda
-            ebs:
-              volume_size: 8
-              delete_on_termination: true
+        vpc_subnet_id: "{{ subnet.subnet.id }}"
+        security_group: "{{ sg.group_id }}"
+        network:
+          assign_public_ip: true
         tags:
-          Name: "{{ instance_name }}"
-          Environment: Development
-          ManagedBy: Ansible
-        state: running
-        aws_access_key: "{{ aws_access_key }}"
-        aws_secret_key: "{{ aws_secret_key }}"
+          Name: my-ec2
       register: ec2
 
-    - name: Output EC2 public IP
+    - name: Output instance public IP
       debug:
         msg: "EC2 instance public IP: {{ ec2.instances[0].public_ip_address }}"
